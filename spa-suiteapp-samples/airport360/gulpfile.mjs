@@ -101,7 +101,7 @@ async function cleanBuild() {
  * Cleans the src/FileCabinet/SuiteApps directory removing all bundled sources and assets for any SPA projects
  */
 async function cleanBundles() {
-    const ep = await findEntryPoints(tsBuildDir);
+    const ep = await findEntryPoints(buildSuiteAppDir);
     for (const entry of ep){
         if (entry.metadata.includes("SpaServer")){
             await cleanDir(path.dirname(getOutputFile(entry.filePath)));
@@ -171,7 +171,11 @@ function rollupOutputConfig(input) {
  * For a file in the build folder get a corresponding file in the FileCabinet folder
  */
 function getOutputFile(input) {
-    return path.join(fileCabinetSuiteAppDir, path.relative(buildSuiteAppDir, input));
+    const relativePath = path.relative(buildSuiteAppDir, input);
+    if (relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+        throw new Error(`Entry point is outside of ${buildSuiteAppDir}: ${input}`);
+    }
+    return path.join(fileCabinetSuiteAppDir, relativePath);
 }
 
 /**
@@ -209,7 +213,7 @@ async function visitDir(dirPath, process) {
 
 async function findSpaRoots(){
     const roots = [];
-    await visitDir(tsBuildDir, async (filePath) => {
+    await visitDir(buildSuiteAppDir, async (filePath) => {
         const entryPoint = await checkEntryPoint(filePath);
         if (entryPoint && entryPoint.metadata.includes("SpaServer")) {
             roots.push(path.dirname(entryPoint.filePath));
